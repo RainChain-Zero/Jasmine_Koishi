@@ -1,0 +1,14 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "./plugins/test"
+    },
+    {
+      "path": "./plugins/demo"
+    },
+    {
+      "path": "./"
+    }
+  ]
+}

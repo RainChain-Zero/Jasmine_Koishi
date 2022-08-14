@@ -23,16 +23,6 @@ export function apply(ctx: Context) {
         })
     })
 
-  ctx.command('来点段子')
-    .action(async ({ session }) => {
-      ctx.http('GET', 'https://apibug.cn/api/sjdz/?type=json&apiKey=1dcc73cb9542baa7625a796863c5af02')
-        .then((resp) => {
-          session.send(resp.data)
-        }).catch(() => {
-          session.send('随机段子api出错')
-        })
-    })
-
   ctx.command('来点彩虹屁').alias(...['彩虹屁', '来点夸夸'])
     .action(async ({ session }) => {
       ctx.http('GET', 'https://apibug.cn/api/chp/&apiKey=9929192683301591c2ffd23658913289')

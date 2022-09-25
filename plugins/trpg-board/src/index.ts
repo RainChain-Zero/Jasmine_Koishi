@@ -1,4 +1,5 @@
 import { Context, Schema, segment, sleep, Time } from 'koishi'
+import '@koishijs/plugin-adapter-onebot'
 import * as fs from 'fs-extra';
 
 export const name = 'trpg-board'
@@ -11,8 +12,11 @@ export const Config: Schema<Config> = Schema.object({})
 const path = './plugins/trpg-board/src/data.json'
 const idPath = './plugins/trpg-board/src/id.txt'
 
-//四个方舟群
-const arkGroups: Array<number> = [1007561501, 1025316358, 925777201, 933402821]
+//七个方舟群
+const arkGroups: Array<string> = ['1007561501', '1025316358', '925777201', '933402821', '1169975517', '660324090', '152791149']
+
+//测试群
+const testGroups: Array<string> = ['436159372']
 
 //格式不符合检测
 function checkTrpg(info: string): boolean {
@@ -41,7 +45,7 @@ function getTrpg(id: number, array: Array<trpgType>): number {
 }
 
 export function apply(ctx: Context) {
-  ctx.guild('1007561501', '1025316358', '925777201', '933402821')
+  ctx.guild(...arkGroups)
     .command('开舟团')
     .action(async ({ session }) => {
       await session.send(segment('quote', { id: session.messageId }) + '请将开团信息发送上来哦~你的下一条消息将作为公告在四个群广播\n可以输入"取消"以停止。')
@@ -68,14 +72,28 @@ export function apply(ctx: Context) {
       fs.writeFileSync(path, JSON.stringify(data))
 
       info = `ID：${idNow}\n${info}`
-      arkGroups.forEach(async (value) => {
-        await session.bot.internal.sendGroupNotice(value, info)
-      })
-      await session.send(`正在向四个群广播中...您的团编号为${idNow}`)
+      await session.send(`正在向七个群广播中...您的团编号为${idNow}`)
+      //打乱群数组，公平性
+      const arkGroupsShuffle = (function shuffle(arr) {
+        var random: number
+        var newArr = []
+
+        while (arr.length) {
+          random = Math.floor(Math.random() * arr.length)
+          newArr.push(arr[random])
+          arr.splice(random, 1)
+        }
+        return newArr
+      })(arkGroups)
+      for (let index = 0; index < arkGroupsShuffle.length; index++) {
+        setTimeout(async () => {
+          await session.onebot.sendGroupNoticeAsync(parseInt(arkGroupsShuffle[index]), info)
+        }, (index + 1) * 5000)
+      }
     })
 
   //查看或设置团状态
-  ctx.command('团状态 <id:posint> [state:text]')
+  ctx.guild(...arkGroups).command('团状态 <id:posint> [state:text]')
     .action(({ args, session }) => {
       const dataRaw: string = fs.readFileSync(path, 'utf8')
       let data: Array<trpgType> = JSON.parse(dataRaw)
@@ -101,7 +119,7 @@ export function apply(ctx: Context) {
     })
 
   //删除团
-  ctx.command('删除团 <id:posint>')
+  ctx.guild(...arkGroups).command('删除团 <id:posint>')
     .action(({ args, session }) => {
       const dataRaw: string = fs.readFileSync(path, 'utf8')
       let data: Array<trpgType> = JSON.parse(dataRaw)
@@ -122,11 +140,11 @@ export function apply(ctx: Context) {
     })
 
   //监听入群事件
-  ctx.guild('1007561501', '1025316358', '925777201', '933402821')
+  ctx.guild(...arkGroups)
     .on('guild-member-request', (session) => {
       const content = session.content
-      const answer = content.substring(content.lastIndexOf('答案：') + 3).toLowerCase()
-      if (answer.includes('arkdice') || answer.includes('骰子社') || answer.includes('忘忧')) {
+      const answer = content.substring(content.lastIndexOf('答案：') + 3).toLowerCase().replace(/\s+/g, '')
+      if (answer.includes('arkdice') || answer.includes('泰拉骰子') || answer.includes('骰子社') || answer.includes('忘忧')) {
         session.bot.internal.setGroupAddRequest(session.messageId, session.subtype, true)
       }
     })

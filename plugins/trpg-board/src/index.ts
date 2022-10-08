@@ -48,7 +48,7 @@ export function apply(ctx: Context) {
   ctx.guild(...arkGroups)
     .command('开舟团')
     .action(async ({ session }) => {
-      await session.send(segment('quote', { id: session.messageId }) + '请将开团信息发送上来哦~你的下一条消息将作为公告在四个群广播\n可以输入"取消"以停止。')
+      await session.send(segment('quote', { id: session.messageId }) + `请将开团信息发送上来哦~你的下一条消息将作为公告在${arkGroups.length}个群广播\n可以输入"取消"以停止。`)
       let info = await session.prompt(Time.minute)
       if (!info || info === '取消') {
         await session.send(segment('quote', { id: session.messageId }) + '还没有想好吗？没有关系，之后再来也可以哦~')
@@ -74,7 +74,9 @@ export function apply(ctx: Context) {
       info = `ID：${idNow}\n${info}`
       await session.send(`正在向七个群广播中...您的团编号为${idNow}`)
       //打乱群数组，公平性
-      const arkGroupsShuffle = (function shuffle(arr) {
+      const arkGroupsShuffle = ((arr: Array<String>) => {
+        //改变引用，防止修改到原数组
+        arr = [...arr]
         var random: number
         var newArr = []
 

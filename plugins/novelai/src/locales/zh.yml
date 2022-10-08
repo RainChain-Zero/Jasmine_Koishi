@@ -1,0 +1,25 @@
+commands:
+  novelai:
+    description: AI 画图
+    usage: |-
+      输入用逗号隔开的英文标签，例如 Mr.Quin, dark sword, red eyes。
+      查找标签可以使用 Danbooru
+
+    options:
+      model: 设定生成模型 (safe, nai, furry)
+      orient: 设定图片方向 (portrait, landscape, square)
+      sampler: 设置采样器 (k_euler_ancestral, k_euler, k_lms, plms, ddim)
+      anatony: 过滤不合理构图
+      seed: 设置随机种子
+
+    messages:
+      invalid-input: 必须都是英文才可以哦？。
+      forbidden-word: 请求含有违禁词 ({0})。
+      concurrent-jobs: 请稍后再试。
+      waiting: 在画了在画了
+      unknown-error: 发生未知错误。
+      nickname: AI 画师
+      rate-limited: 服务器访问频率过高，请稍后再试
+      invalid-token: 令牌无效或已过期，请联系管理员。
+      unauthorized: 令牌未授权，可能需要续费，请联系管理员。
+      too-fast: 该指令30s内仅能使用一次哦？

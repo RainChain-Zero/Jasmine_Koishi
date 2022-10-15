@@ -14,6 +14,7 @@ const idPath = './plugins/trpg-board/src/id.txt'
 
 //七个方舟群
 const arkGroups: Array<string> = ['1007561501', '1025316358', '925777201', '933402821', '1169975517', '660324090', '152791149']
+//const arkGroups: Array<string> = ['436159372']
 
 //测试群
 const testGroups: Array<string> = ['436159372']

@@ -1,7 +1,6 @@
-import { Context, Dict, Logger, Quester, Schema, segment, Session, Time } from 'koishi'
-import { download, login, NetworkError, resizeInput } from './utils'
+import { Context, Dict, Logger, Quester, Schema, segment, Session, Time, trimSlash } from 'koishi'
+import { download, getImageSize, login, NetworkError, resizeInput } from './utils'
 import { } from '@koishijs/plugin-help'
-import getImageSize from 'image-size'
 
 export const reactive = true
 export const name = 'novelai'
@@ -55,7 +54,7 @@ export const Config = Schema.intersect([
   Schema.object({
     type: Schema.union([
       Schema.const('token' as const).description('授权令牌'),
-      Schema.const('login' as const).description('账号密码'),
+      ...process.env.KOISHI_ENV === 'browser' ? [] : [Schema.const('login' as const).description('账号密码')],
       Schema.const('naifu' as const).description('NAIFU'),
     ] as const).description('登录方式'),
   }).description('登录设置'),
@@ -92,9 +91,9 @@ export const Config = Schema.intersect([
     sampler: Schema.union(samplers).description('默认的采样器。').default('k_euler_ancestral'),
     anatomy: Schema.boolean().default(true).description('是否过滤不合理构图。'),
     allowAnlas: Schema.boolean().default(true).description('是否允许使用点数。禁用后部分功能 (图片增强和手动设置某些参数) 将无法使用。'),
-    basePrompt: Schema.string().description('默认的附加标签。').default(null),
+    basePrompt: Schema.string().description('默认的附加标签。').default('masterpiece, best quality'),
     forbidden: Schema.string().role('textarea').description('违禁词列表。含有违禁词的请求将被拒绝。').default(''),
-    requestTimeout: Schema.number().role('time').description('当请求超过这个时间时会中止并提示超时。').default(Time.minute * 0.5),
+    requestTimeout: Schema.number().role('time').description('当请求超过这个时间时会中止并提示超时。').default(Time.minute),
     recallTimeout: Schema.number().role('time').description('图片发送后自动撤回的时间 (设置为 0 以禁用此功能)。').default(0),
     maxConcurrency: Schema.number().description('单个频道下的最大并发数量 (设置为 0 以禁用此功能)。').default(1),
   }).description('功能设置'),
@@ -125,7 +124,8 @@ export function apply(ctx: Context, config: Config) {
   ctx.i18n.define('zh', require('./locales/zh'))
 
   let forbidden: Forbidden[]
-  const states: Dict<Set<string>> = Object.create(null)
+  const tasks: Dict<Set<string>> = Object.create(null)
+  const globalTasks = new Set<string>()
 
   ctx.accept(['forbidden'], (config) => {
     forbidden = config.forbidden.trim()
@@ -147,12 +147,12 @@ export function apply(ctx: Context, config: Config) {
 
   const hidden = () => !config.allowAnlas
 
-  const cmd = ctx.guild('921454429').command('novelai <prompts:text>')
+  const cmd = ctx.guild('436159372', '921454429').command('novelai <prompts:text>')
     .alias('nai')
     .option('enhance', '-e', { hidden })
     .option('model', '-m <model>', { type: models })
     .option('orient', '-o <orient>', { type: orients })
-    .option('sampler', '-s <sampler>')
+    .option('sampler', '-s <sampler>', { type: samplers })
     .option('seed', '-x <seed:number>')
     .option('steps', '-t <step:number>', { hidden })
     .option('scale', '-c <scale:number>')
@@ -160,7 +160,7 @@ export function apply(ctx: Context, config: Config) {
     .option('strength', '-N <strength:number>', { hidden })
     .option('anatomy', '-a, --strict-anatomy', { value: true, hidden: () => ctx.config.anatomy })
     .option('anatomy', '-A, --loose-anatomy', { value: false, hidden: () => !ctx.config.anatomy })
-    .action(async ({ session, options }, input: string) => {
+    .action(async ({ session, options }, input) => {
       if (!input?.trim()) return session.execute('help novelai')
 
       let imgUrl: string
@@ -192,7 +192,7 @@ export function apply(ctx: Context, config: Config) {
       // extract negative prompts
       const undesired = [lowQuality]
       if (options.anatomy ?? config.anatomy) undesired.push(badAnatomy)
-      const capture: RegExpMatchArray = input.match(/(?:,?\s*)negative prompts?:([\s\S]+)/m)
+      const capture = input.match(/(?:,?\s*)negative prompts?:([\s\S]+)/m)
       if (capture) {
         input = input.slice(0, capture.index).trim()
         undesired.push(capture[1])
@@ -201,6 +201,7 @@ export function apply(ctx: Context, config: Config) {
       // remove forbidden words
       const words = input.split(/, /g).filter((word) => {
         word = word.replace(/[^a-z0-9]+/g, ' ').trim()
+        if (!word) return false
         for (const { pattern, strict } of forbidden) {
           if (strict && word.split(/\W+/g).includes(pattern)) {
             return false
@@ -216,6 +217,7 @@ export function apply(ctx: Context, config: Config) {
         tag = tag.trim().toLowerCase()
         if (tag && !words.includes(tag)) words.push(tag)
       }
+      words.push(highQuality)
       input = words.join(', ')
 
       let token: string
@@ -229,19 +231,10 @@ export function apply(ctx: Context, config: Config) {
         return session.text('.unknown-error')
       }
 
-      const id = Math.random().toString(36).slice(2)
-      if (config.maxConcurrency) {
-        states[session.cid] ||= new Set()
-        if (states[session.cid].size >= config.maxConcurrency) {
-          return session.text('.concurrent-jobs')
-        } else {
-          states[session.cid].add(id)
-        }
-      }
-
       const model = modelMap[options.model]
       const orient = orientMap[options.orient]
-      const seed = options.seed || Math.round(new Date().getTime() / 1000)
+      // seed can be up to 2^32
+      const seed = options.seed || Math.floor(Math.random() * Math.pow(2, 32))
 
       const parameters: Dict = {
         seed,
@@ -252,9 +245,9 @@ export function apply(ctx: Context, config: Config) {
       }
 
       if (imgUrl) {
-        let image: Buffer
+        let image: [ArrayBuffer, string]
         try {
-          image = Buffer.from(await download(ctx, imgUrl))
+          image = await download(ctx, imgUrl)
         } catch (err) {
           if (err instanceof NetworkError) {
             return session.text(err.message, err.params)
@@ -263,9 +256,9 @@ export function apply(ctx: Context, config: Config) {
           return session.text('.download-error')
         }
 
-        const size = getImageSize(image)
+        const size = getImageSize(image[0])
         Object.assign(parameters, {
-          image: image.toString('base64'),
+          image: image[1],
           scale: options.scale ?? 11,
           steps: options.steps ?? 50,
         })
@@ -299,9 +292,19 @@ export function apply(ctx: Context, config: Config) {
         })
       }
 
+      const id = Math.random().toString(36).slice(2)
+      if (config.maxConcurrency) {
+        const store = tasks[session.cid] ||= new Set()
+        if (store.size >= config.maxConcurrency) {
+          return session.text('.concurrent-jobs')
+        } else {
+          store.add(id)
+        }
+      }
+
       try {
         const path = config.type === 'naifu' ? '/generate-stream' : '/ai/generate-image'
-        const art = await ctx.http.axios(config.endpoint + path, {
+        const art = await ctx.http.axios(trimSlash(config.endpoint) + path, {
           method: 'POST',
           timeout: config.requestTimeout,
           headers: {
@@ -317,6 +320,9 @@ export function apply(ctx: Context, config: Config) {
           // data:
           return res.data.slice(27)
         })
+
+        if (!art.trim()) return session.text('.empty-response')
+
         const ids = await session.send(segment.quote(session.messageId) + `seed: ${seed}` + segment.image('base64://' + art))
         if (config.recallTimeout) {
           ctx.setTimeout(() => {
@@ -328,7 +334,8 @@ export function apply(ctx: Context, config: Config) {
       } catch (err) {
         return errorHandler(session, err)
       } finally {
-        states[session.cid]?.delete(id)
+        tasks[session.cid]?.delete(id)
+        globalTasks.delete(id)
       }
     })
 

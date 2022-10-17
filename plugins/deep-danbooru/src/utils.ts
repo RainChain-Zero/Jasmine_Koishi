@@ -1,45 +1,22 @@
-import { Context, Dict, pick, Quester } from 'koishi'
+/*
+ * @FilePath: /deep-danbooru/src/utils.ts
+ * @author: Wibus
+ * @Date: 2022-10-15 18:29:51
+ * @LastEditors: Wibus
+ * @LastEditTime: 2022-10-15 18:29:51
+ * Coding With IU
+ */
+import { Context, Dict, Quester } from 'koishi'
 import {
   crypto_generichash, crypto_pwhash,
   crypto_pwhash_ALG_ARGON2ID13, crypto_pwhash_SALTBYTES, ready,
 } from 'libsodium-wrappers'
-import imageSize from 'image-size'
-import { Subscription } from './types'
-
-export interface Size {
-  width: number
-  height: number
-}
-
-export function getImageSize(buffer: ArrayBuffer): Size {
-  if (process.env.KOISHI_ENV === 'browser') {
-    const blob = new Blob([buffer])
-    const image = new Image()
-    image.src = URL.createObjectURL(blob)
-    return pick(image, ['width', 'height'])
-  } else {
-    return imageSize(Buffer.from(buffer))
-  }
-}
-
-export function arrayBufferToBase64(buffer: ArrayBuffer) {
-  if (process.env.KOISHI_ENV === 'browser') {
-    let result = ''
-    const chunk = 8192
-    for (let index = 0; index < buffer.byteLength; index += chunk) {
-      result += String.fromCharCode.apply(null, buffer.slice(index, index + chunk))
-    }
-    return btoa(result)
-  } else {
-    return Buffer.from(buffer).toString('base64')
-  }
-}
 
 const MAX_OUTPUT_SIZE = 1048576
 const MAX_CONTENT_SIZE = 10485760
 const ALLOWED_TYPES = ['image/jpeg', 'image/png']
 
-export async function download(ctx: Context, url: string, headers = {}): Promise<[ArrayBuffer, string]> {
+export async function download(ctx: Context, url: string, headers = {}): Promise<ArrayBuffer> {
   if (url.startsWith('data:')) {
     const [, type, base64] = url.match(/^data:(image\/\w+);base64,(.*)$/)
     if (!ALLOWED_TYPES.includes(type)) {
@@ -50,7 +27,7 @@ export async function download(ctx: Context, url: string, headers = {}): Promise
     for (let i = 0; i < binary.length; i++) {
       result[i] = binary.charCodeAt(i)
     }
-    return [result, base64]
+    return result
   } else {
     const head = await ctx.http.head(url, { headers })
     if (+head['content-length'] > MAX_CONTENT_SIZE) {
@@ -59,8 +36,7 @@ export async function download(ctx: Context, url: string, headers = {}): Promise
     if (!ALLOWED_TYPES.includes(head['content-type'])) {
       throw new NetworkError('.unsupported-file-type')
     }
-    const buffer = await ctx.http.get(url, { responseType: 'arraybuffer', headers })
-    return [buffer, arrayBufferToBase64(buffer)]
+    return ctx.http.get(url, { responseType: 'arraybuffer', headers })
   }
 }
 
@@ -93,6 +69,11 @@ export async function calcEncryptionKey(email: string, password: string) {
     'base64')
 }
 
+export const headers = {
+  'content-type': 'application/json',
+  'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36',
+}
+
 export class NetworkError extends Error {
   constructor(message: string, public params = {}) {
     super(message)
@@ -108,21 +89,6 @@ export class NetworkError extends Error {
       }
     }
     throw e
-  }
-}
-
-export async function login(ctx: Context): Promise<string> {
-  if (ctx.config.type === 'token') {
-    await ctx.http.get<Subscription>(ctx.config.endpoint + '/user/subscription', {
-      timeout: 30000,
-      headers: { authorization: 'Bearer ' + ctx.config.token },
-    }).catch(NetworkError.catch({ 401: '.invalid-token' }))
-    return ctx.config.token
-  } else if (ctx.config.type === 'login' && process.env.KOISHI_ENV !== 'browser') {
-    return ctx.http.post(ctx.config.endpoint + '/user/login', {
-      timeout: 30000,
-      key: await calcAccessKey(ctx.config.email, ctx.config.password),
-    }).catch(NetworkError.catch({ 401: '.invalid-password' })).then(res => res.accessToken)
   }
 }
 
@@ -175,4 +141,15 @@ export function resizeInput(size: Size): Size {
     const width = closestMultiple(height * aspectRatio, 64)
     return { width, height }
   }
+}
+
+export function generate_code(code_len = 6) {
+  let all_char = '0123456789qazwsxedcrfvtgbyhnujmikolp';
+  let index = all_char.length - 1;
+  let code = '';
+  for (let i = 0; i < code_len; i++) {
+      let num = Math.floor(Math.random() * (index + 1));
+      code += all_char[num];
+  }
+  return code;
 }

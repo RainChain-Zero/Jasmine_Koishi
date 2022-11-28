@@ -1,4 +1,4 @@
-import { Context, Dict, pick, Quester } from 'koishi'
+import { Context, Dict, pick, Quester, Logger } from 'koishi'
 import {
   crypto_generichash, crypto_pwhash,
   crypto_pwhash_ALG_ARGON2ID13, crypto_pwhash_SALTBYTES, ready,
@@ -175,4 +175,32 @@ export function resizeInput(size: Size): Size {
     const width = closestMultiple(height * aspectRatio, 64)
     return { width, height }
   }
+}
+
+const logger = new Logger('novelai')
+//获取fl
+export async function getFl(ctx: Context, userId: string): Promise<number> {
+  const fl = await ctx.http.axios(`http://localhost:45445/getItemConf/${userId}`, { method: 'GET' })
+    .then((res) => {
+      return res.data['data']['fl']
+    }).catch((err) => {
+      logger.error(err)
+      return 0
+    })
+  logger.info(`用户${userId}的fl为${fl}`)
+  return fl
+}
+
+//设置fl
+export async function setFl(ctx: Context, userId: string, fl: number): Promise<void> {
+  await ctx.http.axios('http://localhost:45445/setItemConf', { method: 'POST', data: { qq: userId, fl: fl } })
+    .then((res) => {
+      if (res.data['succ'] == true) {
+        logger.info(`用户${userId}的fl设置成功`)
+      } else {
+        logger.info(`用户${userId}的fl设置失败`)
+      }
+    }).catch((err) => {
+      logger.error(err)
+    })
 }

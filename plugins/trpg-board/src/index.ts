@@ -12,11 +12,11 @@ export const Config: Schema<Config> = Schema.object({})
 const path = './plugins/trpg-board/src/data.json'
 const idPath = './plugins/trpg-board/src/id.txt'
 
-//七个方舟群
-const arkGroups: Array<string> = ['1007561501', '1025316358', '925777201', '933402821', '1169975517', '660324090', '152791149']
+//八个方舟群
+//const arkGroups: Array<string> = ['1007561501', '1025316358', '925777201', '933402821', '1169975517', '660324090', '152791149', '636500288']
 //const arkGroups: Array<string> = ['436159372']
-
-//测试群
+const arkGroups: Array<string> = ['1007561501']
+//测试群.
 const testGroups: Array<string> = ['436159372']
 
 //格式不符合检测
@@ -73,7 +73,7 @@ export function apply(ctx: Context) {
       fs.writeFileSync(path, JSON.stringify(data))
 
       info = `ID：${idNow}\n${info}`
-      await session.send(`正在向七个群广播中...您的团编号为${idNow}`)
+      await session.send(`正在向${arkGroups.length}个群广播中...您的团编号为${idNow}`)
       //打乱群数组，公平性
       const arkGroupsShuffle = ((arr: Array<String>) => {
         //改变引用，防止修改到原数组

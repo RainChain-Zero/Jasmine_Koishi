@@ -1,5 +1,5 @@
 import { Context, Dict, Logger, Quester, Schema, segment, Session, Time, trimSlash } from 'koishi'
-import { download, getImageSize, login, NetworkError, resizeInput } from './utils'
+import { download, getImageSize, login, NetworkError, resizeInput, getFl, setFl } from './utils'
 import { } from '@koishijs/plugin-help'
 
 export const reactive = true
@@ -164,6 +164,8 @@ export function apply(ctx: Context, config: Config) {
       if (!input?.trim()) return session.execute('help novelai')
 
       let imgUrl: string
+      //fl数，消耗点数将扣除fl
+      let fl: number, isAnlasUsed: boolean = false
       if (config.allowAnlas) {
         input = segment.transform(input, {
           image(attrs) {
@@ -171,6 +173,15 @@ export function apply(ctx: Context, config: Config) {
             return ''
           },
         })
+
+        //! img2img需要fl
+        if (imgUrl || options.steps) {
+          isAnlasUsed = true
+          fl = await getFl(ctx, session.userId)
+          if (fl < 50) {
+            return session.text('.less-fl')
+          }
+        }
 
         if (options.enhance && !imgUrl) {
           return session.text('.expect-image')
@@ -180,9 +191,10 @@ export function apply(ctx: Context, config: Config) {
           return session.text('.expect-prompt')
         }
       } else {
-        delete options.enhance
         delete options.steps
       }
+      //! 禁止图片增强
+      delete options.enhance
 
       input = input.toLowerCase().replace(/[,，]/g, ', ').replace(/\s+/g, ' ')
       if (/[^\s\w"'“”‘’.,:|()\[\]{}-]/.test(input)) {
@@ -217,6 +229,7 @@ export function apply(ctx: Context, config: Config) {
         tag = tag.trim().toLowerCase()
         if (tag && !words.includes(tag)) words.push(tag)
       }
+      //! 置入高品质词条
       words.push(highQuality)
       input = words.join(', ')
 
@@ -245,6 +258,9 @@ export function apply(ctx: Context, config: Config) {
       }
 
       if (imgUrl) {
+        //! img2img，不可以修改step
+        delete options.steps
+
         let image: [ArrayBuffer, string]
         try {
           image = await download(ctx, imgUrl)
@@ -323,7 +339,8 @@ export function apply(ctx: Context, config: Config) {
 
         if (!art.trim()) return session.text('.empty-response')
 
-        const ids = await session.send(segment.quote(session.messageId) + `seed: ${seed}` + segment.image('base64://' + art))
+        const reply = `seed: ${seed}` + (isAnlasUsed ? '，已扣除50fl' : '')
+        const ids = await session.send(segment.quote(session.messageId) + reply + segment.image('base64://' + art))
         if (config.recallTimeout) {
           ctx.setTimeout(() => {
             for (const id of ids) {
@@ -336,6 +353,10 @@ export function apply(ctx: Context, config: Config) {
       } finally {
         tasks[session.cid]?.delete(id)
         globalTasks.delete(id)
+      }
+      //! 修改fl
+      if (isAnlasUsed) {
+        await setFl(ctx, session.userId, fl - 50)
       }
     })
 

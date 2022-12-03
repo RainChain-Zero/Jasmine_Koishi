@@ -18,5 +18,5 @@ export const buildForwardMessage = (session: Session<never, never>, res: any) =>
             resStr = ''
         }
     }
-    return result
+    return result.children.length ? result : '茉莉没有找到相应的瓶子哦~'
 }

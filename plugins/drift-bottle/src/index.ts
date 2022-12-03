@@ -1,4 +1,4 @@
-import { collect, comment, deleteBottle, deleteComment, getCollect, getComment, getThumbs, giveThumbs, pickBottle, throwBottle } from './apis/index';
+import { collect, comment, deleteBottle, deleteCollect, deleteComment, getCollect, getComment, getThumbs, giveThumbs, pickBottle, throwBottle } from './apis/index';
 import { Context, Logger, Schema, segment, Time } from 'koishi'
 import { downloadPic } from './apis'
 import * as fs from 'fs-extra';
@@ -218,6 +218,20 @@ export function apply(ctx: Context, config: Config) {
       }
     }).catch(err => {
       session.send('收藏失败×请联系管理员')
+      console.error(err)
+    })
+  })
+
+  ctx.command('取消收藏 <id:number>').action(async ({ session, args }) => {
+    deleteCollect(ctx, args[0], session.userId).then(res => {
+      if (!res.data.succ) {
+        session.send('取消收藏失败×请联系管理员')
+        console.error(res.data.errMsg)
+      } else {
+        session.send(res.data.data > 0 ? `你已取消收藏序号为${args[0]}的瓶子` : '取消收藏失败，你似乎没有收藏过这个瓶子')
+      }
+    }).catch(err => {
+      session.send('取消收藏失败×请联系管理员')
       console.error(err)
     })
   })

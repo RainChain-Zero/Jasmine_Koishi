@@ -127,6 +127,16 @@ export const collect = (ctx: Context, id: number, qq: string) => {
     })
 }
 
+export const deleteCollect = (ctx: Context, id: number, qq: string) => {
+    return ctx.http.axios(baseUrl + 'deleteCollect', {
+        method: 'DELETE',
+        data: {
+            id: id,
+            qq: qq
+        }
+    })
+}
+
 export const getCollect = (ctx: Context, qq: string) => {
     return ctx.http.axios(baseUrl + 'searchBottleByCollect', {
         method: 'GET',

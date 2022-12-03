@@ -1,5 +1,5 @@
 import { Context } from 'koishi'
-
+import qs from 'qs';
 export const downloadPic = async (ctx: Context, url: string, path: string) => {
     const UUID = require('uuid-js')
     const uuid1 = UUID.create(1).toString()
@@ -29,6 +29,13 @@ type Bottle = {
 }
 export const throwBottle = (ctx: Context, bottle: Bottle) => {
     return ctx.http.axios(baseUrl + 'throw', {
+        method: 'POST',
+        data: bottle
+    })
+}
+
+export const jumpSea = (ctx: Context, bottle: Bottle) => {
+    return ctx.http.axios(baseUrl + 'jumpSea', {
         method: 'POST',
         data: bottle
     })
@@ -142,6 +149,36 @@ export const getCollect = (ctx: Context, qq: string) => {
         method: 'GET',
         params: {
             qq: qq
+        }
+    })
+}
+
+export const getMyBottle = (ctx: Context, qq: string) => {
+    return ctx.http.axios(baseUrl + 'searchBottleByQq', {
+        method: 'GET',
+        params: {
+            qq: qq
+        }
+    })
+}
+
+export const getReplyBottle = (ctx: Context, qq: string) => {
+    return ctx.http.axios(baseUrl + 'searchBottleByReply', {
+        method: 'GET',
+        params: {
+            qq: qq
+        }
+    })
+}
+
+export const searchByKeywords = (ctx: Context, keywords: Array<string>) => {
+    return ctx.http.axios(baseUrl + 'searchByKeywords', {
+        method: 'GET',
+        params: {
+            key: keywords
+        },
+        paramsSerializer: {
+            indexes: null
         }
     })
 }

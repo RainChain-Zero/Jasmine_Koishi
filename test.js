@@ -1,5 +1,2 @@
-let a = " ";
-a = a.trim();
-if (a === "") {
-  console.log("a is empty");
-}
+let a = 2;
+console.log((a = 1));

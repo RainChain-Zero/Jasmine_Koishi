@@ -17,7 +17,7 @@ export interface Config {
 }
 
 export const Config: Schema<Config> = Schema.object({
-  hfUrl: Schema.string().role('textarea').description('Hugging Face Space 推送接口 <br> 获取方法：打开某一个 space，打开 Developer Tools，转至 Network 标签页，点击 App 中的 Input 上传图片，点击 Submit，此时得到了一个类似于 https://hf.space/embed/user/DeepDanbooru/api/queue/action 的链接，取 https://hf.space/embed/user/DeepDanbooru/api/queue 置入此处').default('https://hf.space/embed/hysts/DeepDanbooru/api/queue'),
+  hfUrl: Schema.string().role('textarea').description('Hugging Face Space 推送接口 <br> 获取方法：打开某一个 space，打开 Developer Tools，转至 Network 标签页，点击 App 中的 Input 上传图片，点击 Submit，此时得到了一个类似于 https://hf.space/embed/user/DeepDanbooru/api/queue/action 的链接，取 https://hf.space/embed/user/DeepDanbooru/api/queue 置入此处').default('https://nocrypt-deepdanbooru-string.hf.space/api/queue'),
 }).description('DeepDanbooru 相关配置')
 
 
@@ -123,9 +123,9 @@ export function apply(ctx: Context, config: Config) {
         nickname: session.author?.nickname || session.username,
       }
       try {
-        const reply1 = `tags:\n${result.data.data[0].confidences.map((tag: any) => { return tag.label })}`
+        const reply1 = `tags:\n${result.data.data[2].confidences.map((tag: any) => { return tag.label })}`
           + '\n若要获得更好的效果，请根据第二条消息调整权重'
-        const reply2 = `tags:\n${result.data.data[0].confidences.map((tag: any) => {
+        const reply2 = `tags:\n${result.data.data[2].confidences.map((tag: any) => {
           return `${tag.label}：${(tag.confidence * 100).toFixed(2)}%\n`
         })}`.replace(/,/g, '')
         await session.send(segment('figure', [

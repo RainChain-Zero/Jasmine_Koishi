@@ -1,7 +1,8 @@
-import { comment, deleteBottle, deleteComment, getComment, getThumbs, giveThumbs, pickBottle, throwBottle } from './apis/index';
+import { collect, comment, deleteBottle, deleteComment, getCollect, getComment, getThumbs, giveThumbs, pickBottle, throwBottle } from './apis/index';
 import { Context, Logger, Schema, segment, Time } from 'koishi'
 import { downloadPic } from './apis'
 import * as fs from 'fs-extra';
+import { buildForwardMessage } from './utils';
 
 export const name = 'drift-bottle'
 
@@ -206,4 +207,34 @@ export function apply(ctx: Context, config: Config) {
       console.error(err)
     })
   })
+
+  ctx.command('收藏 <id:number>').action(async ({ session, args }) => {
+    collect(ctx, args[0], session.userId).then(res => {
+      if (!res.data.succ) {
+        session.send(res.data.errMsg)
+        console.error(res.data.errMsg)
+      } else {
+        session.send(`你已收藏了序号为${args[0]}的瓶子`)
+      }
+    }).catch(err => {
+      session.send('收藏失败×请联系管理员')
+      console.error(err)
+    })
+  })
+
+  ctx.command('我的收藏').action(async ({ session }) => {
+    getCollect(ctx, session.userId).then(async (res) => {
+      if (!res.data.succ) {
+        session.send('获取收藏失败×请联系管理员')
+        console.error(res.data.errMsg)
+      } else {
+        await session.send(buildForwardMessage(session, res))
+      }
+    }).catch(err => {
+      session.send('获取收藏失败×请联系管理员')
+      console.error(err)
+    })
+  })
+
 }
+

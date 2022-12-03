@@ -1,2 +1,3 @@
-let a = 2;
-console.log((a = 1));
+let a = "13231";
+
+console.log(a.substring(0, 20));

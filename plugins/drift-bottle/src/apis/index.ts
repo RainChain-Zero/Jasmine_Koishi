@@ -116,3 +116,22 @@ export const giveThumbs = (ctx: Context, bottleThumbs: BottleThumbs) => {
         data: bottleThumbs
     })
 }
+
+export const collect = (ctx: Context, id: number, qq: string) => {
+    return ctx.http.axios(baseUrl + 'collect', {
+        method: 'POST',
+        data: {
+            id: id,
+            qq: qq
+        }
+    })
+}
+
+export const getCollect = (ctx: Context, qq: string) => {
+    return ctx.http.axios(baseUrl + 'searchBottleByCollect', {
+        method: 'GET',
+        params: {
+            qq: qq
+        }
+    })
+}
